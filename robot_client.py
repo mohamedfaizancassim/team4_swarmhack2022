@@ -369,7 +369,10 @@ async def send_commands(robot):
             #Follower mode on detecting master
             else:
                 print("|Follow Mode|")
-                #Obtain the orientation of the master robot
+
+                #Check if robot has neighbours.
+                #If true, move towards master.
+                #If false, do nothing. 
                 if len(robot.neighbours)>0:
                     master_orientation=robot.neighbours[master_id]['orientation']
                     master_bearing = robot.neighbours[master_id]['bearing']
@@ -377,15 +380,19 @@ async def send_commands(robot):
                     print("Orientation: ", master_orientation)
                     print("Bearing: ", master_bearing)
 
-                    #If the bearing is less than 5 degrees, move forward. 
-                    if abs(master_bearing)<=5:
+
+
+                    # The +/- range which bearing falls under for robot to move forward. 
+                    forward_bearing_tolerance=5
+                    
+                    if abs(master_bearing)<=forward_bearing_tolerance: #MOVE FORWARD
                         if master_range>=0.1:
                             left = right = robot.MAX_SPEED
                         else:
                             left=right=0
-                    else:
-                        #If bearing is negative, turn RIGHT 
-                        if master_bearing>5:
+                    else: #TURN
+                        
+                        if master_bearing>forward_bearing_tolerance: #Positive bearing, turn left.
                             if master_bearing>60:
                                 left = +robot.MAX_SPEED*0.5
                                 right = -robot.MAX_SPEED*0.5
@@ -394,8 +401,8 @@ async def send_commands(robot):
                                 right = +robot.MAX_SPEED*0.7-(abs(master_bearing)*0.5)
                             time.sleep(0.005)
                             #left = right = robot.MAX_SPEED*0.5
-                        elif master_bearing<-5:
-                           
+
+                        if master_bearing<-forward_bearing_tolerance: #Negative bearing, turn right
                             #turn LEFT
                             if master_bearing<-60:
                                 left = -robot.MAX_SPEED*0.5
@@ -405,8 +412,7 @@ async def send_commands(robot):
                                 right = +robot.MAX_SPEED*0.7+(abs(master_bearing)*0.5)
                             time.sleep(0.005)
                             #left = right = robot.MAX_SPEED*0.5
-                else:
-                    left=right=0
+
         message["set_motor_speeds"] = {}
         message["set_motor_speeds"]["left"] = left
         message["set_motor_speeds"]["right"] = right
