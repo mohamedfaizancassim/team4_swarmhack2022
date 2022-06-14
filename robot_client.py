@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 from robots import robots, server_none, server_york, server_manchester, server_sheffield
 
 import asyncio
@@ -18,13 +17,14 @@ from colorama import Fore
 
 colorama.init(autoreset=True)
 
+master_robot=18
 
 ##
 # Replace `server_none` with one of `server_york`, `server_sheffield`, or `server_manchester` here,
 #  or specify a custom server IP address as a string.
 # All ports should remain at 80.
 ##
-server_address = server_none
+server_address = server_sheffield
 server_port = 80
 robot_port = 80
 ##
@@ -289,7 +289,8 @@ async def send_commands(robot):
 
         # Construct command message
         message = {}
-
+        master_id = "18"
+        
         if robot.teleop:
             # Teleoperation mode
             message["set_leds_colour"] = "blue"
@@ -298,41 +299,110 @@ async def send_commands(robot):
             elif robot.state == RobotState.BACKWARDS:
                 left = right = -robot.MAX_SPEED
             elif robot.state == RobotState.LEFT:
-                left = -robot.MAX_SPEED * 0.8
-                right = robot.MAX_SPEED * 0.8
+                left = -robot.MAX_SPEED 
+                right = robot.MAX_SPEED 
             elif robot.state == RobotState.RIGHT:
-                left = robot.MAX_SPEED * 0.8
-                right = -robot.MAX_SPEED * 0.8
+                left = robot.MAX_SPEED 
+                right = -robot.MAX_SPEED 
             elif robot.state == RobotState.STOP:
                 left = right = 0
         else:
-            # Autonomous mode
-            if robot.state == RobotState.FORWARDS:
-                left = right = robot.MAX_SPEED
-                if (time.time() - robot.turn_time > 0.5) and any(ir > robot.ir_threshold for ir in robot.ir_readings):
-                    robot.turn_time = time.time()
-                    robot.state = random.choice((RobotState.LEFT, RobotState.RIGHT))
-            elif robot.state == RobotState.BACKWARDS:
-                left = right = -robot.MAX_SPEED
-                robot.turn_time = time.time()
-                robot.state = RobotState.FORWARDS
-            elif robot.state == RobotState.LEFT:
-                left = -robot.MAX_SPEED
-                right = robot.MAX_SPEED
-                if time.time() - robot.turn_time > random.uniform(0.5, 1.0):
+            
+            if master_id not in robot.neighbours:
+                # Autonomous mode
+                print("|Autonomous Mode|")
+                # Robot will try to complete tasks independently if no master is observed
+                # if len(robot.tasks)>0 and robot.tasks["range"] < 0.2:
+                #     if abs(robot.tasks["bearing"])<5:
+                #         left = right = robot.MAX_SPEED
+                #     else:
+                #         #If bearing is negative, turn RIGHT 
+                #         if robot.tasks["bearing"]>5:
+                #             if robot.tasks["bearing"]>45:
+                #                 left = +robot.MAX_SPEED*0.5
+                #                 right = -robot.MAX_SPEED*0.5
+                #             else:
+                #                 left = +robot.MAX_SPEED*0.4+(abs(robot.tasks["bearing"])*0.5)
+                #                 right = +robot.MAX_SPEED*0.4-(abs(robot.tasks["bearing"])*0.5)
+                #             time.sleep(0.005)
+                #             #left = right = robot.MAX_SPEED*0.5
+                #         elif robot.tasks["bearing"]<-5:
+                #             #turn LEFT
+                #             if robot.tasks["bearing"]<-45:
+                #                 left = -robot.MAX_SPEED*0.5
+                #                 right = +robot.MAX_SPEED*0.5
+                #             else:
+                #                 left = +robot.MAX_SPEED*0.4-(abs(robot.tasks["bearing"])*0.5)
+                #                 right = +robot.MAX_SPEED*0.4+(abs(robot.tasks["bearing"])*0.5)
+                #             time.sleep(0.005)
+                #             #left = right = robot.MAX_SPEED*0.5
+                            
+                if robot.state == RobotState.FORWARDS:
+                    left = right = robot.MAX_SPEED
+                    if (time.time() - robot.turn_time > 0.5) and any(ir > robot.ir_threshold for ir in robot.ir_readings):
+                        robot.turn_time = time.time()
+                        robot.state = random.choice((RobotState.LEFT, RobotState.RIGHT))
+                elif robot.state == RobotState.BACKWARDS:
+                    left = right = -robot.MAX_SPEED
                     robot.turn_time = time.time()
                     robot.state = RobotState.FORWARDS
-            elif robot.state == RobotState.RIGHT:
-                left = robot.MAX_SPEED
-                right = -robot.MAX_SPEED
-                if time.time() - robot.turn_time > random.uniform(0.5, 1.0):
+                elif robot.state == RobotState.LEFT:
+                    left = -robot.MAX_SPEED
+                    right = robot.MAX_SPEED
+                    if time.time() - robot.turn_time > random.uniform(0.5, 1.0):
+                        robot.turn_time = time.time()
+                        robot.state = RobotState.FORWARDS
+                elif robot.state == RobotState.RIGHT:
+                    left = robot.MAX_SPEED
+                    right = -robot.MAX_SPEED
+                    if time.time() - robot.turn_time > random.uniform(0.5, 1.0):
+                        robot.turn_time = time.time()
+                        robot.state = RobotState.FORWARDS
+                elif robot.state == RobotState.STOP:
+                    left = right = 0
                     robot.turn_time = time.time()
                     robot.state = RobotState.FORWARDS
-            elif robot.state == RobotState.STOP:
-                left = right = 0
-                robot.turn_time = time.time()
-                robot.state = RobotState.FORWARDS
+            #Follower mode on detecting master
+            else:
+                print("|Follow Mode|")
+                #Obtain the orientation of the master robot
+                if len(robot.neighbours)>0:
+                    master_orientation=robot.neighbours[master_id]['orientation']
+                    master_bearing = robot.neighbours[master_id]['bearing']
+                    master_range=robot.neighbours[master_id]['range']
+                    print("Orientation: ", master_orientation)
+                    print("Bearing: ", master_bearing)
 
+                    #If the bearing is less than 5 degrees, move forward. 
+                    if abs(master_bearing)<=5:
+                        if master_range>=0.1:
+                            left = right = robot.MAX_SPEED
+                        else:
+                            left=right=0
+                    else:
+                        #If bearing is negative, turn RIGHT 
+                        if master_bearing>5:
+                            if master_bearing>60:
+                                left = +robot.MAX_SPEED*0.5
+                                right = -robot.MAX_SPEED*0.5
+                            else:
+                                left = +robot.MAX_SPEED*0.7+(abs(master_bearing)*0.5)
+                                right = +robot.MAX_SPEED*0.7-(abs(master_bearing)*0.5)
+                            time.sleep(0.005)
+                            #left = right = robot.MAX_SPEED*0.5
+                        elif master_bearing<-5:
+                           
+                            #turn LEFT
+                            if master_bearing<-60:
+                                left = -robot.MAX_SPEED*0.5
+                                right = +robot.MAX_SPEED*0.5
+                            else:
+                                left = +robot.MAX_SPEED*0.7-(abs(master_bearing)*0.5)
+                                right = +robot.MAX_SPEED*0.7+(abs(master_bearing)*0.5)
+                            time.sleep(0.005)
+                            #left = right = robot.MAX_SPEED*0.5
+                else:
+                    left=right=0
         message["set_motor_speeds"] = {}
         message["set_motor_speeds"]["left"] = left
         message["set_motor_speeds"]["right"] = right
@@ -398,6 +468,7 @@ async def handler(websocket):
                         if int(robot_id) in valid_robots:
                             valid = True
                             await send_message(websocket, f"\r\nControlling robot ({release} to release): " + robot_id)
+                            master_robot=robot_id
                             await send_message(websocket, f"\r\nControls: Forwards = {forwards}; Backwards = {backwards}; Left = {left}; Right = {right}; Stop = SPACE")
                             active_robots[int(robot_id)].teleop = True
                             state = MenuState.DRIVE
@@ -450,7 +521,7 @@ if __name__ == "__main__":
     # Specify robot IDs to work with here. For example for robots 11-15 use:
     #  robot_ids = range(11, 16)
     #robot_ids = range(0, 0)
-    robot_ids=[20]
+    robot_ids=[16,17,18,19,20]
 
     if len(robot_ids) == 0:
         raise Exception(f"Enter range of robot IDs to control on line {inspect.currentframe().f_lineno - 3}, "
