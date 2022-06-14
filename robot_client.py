@@ -17,6 +17,7 @@ from colorama import Fore
 
 colorama.init(autoreset=True)
 
+#The variable that controls the master robot
 master_robot=18
 
 ##
@@ -289,7 +290,10 @@ async def send_commands(robot):
 
         # Construct command message
         message = {}
-        master_id = "18"
+
+        #Select the master based on teleop
+        master_id = str(master_robot)
+        print(Fore.LIGHTBLUE_EX+f"[Info] Current Master Robot: {master_id}")
         
         if robot.teleop:
             # Teleoperation mode
