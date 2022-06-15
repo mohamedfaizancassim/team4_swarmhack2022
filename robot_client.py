@@ -316,30 +316,30 @@ async def send_commands(robot):
                 # Autonomous mode
                 print("|Autonomous Mode|")
                 # Robot will try to complete tasks independently if no master is observed
-                # if len(robot.tasks)>0 and robot.tasks["range"] < 0.2:
-                #     if abs(robot.tasks["bearing"])<5:
-                #         left = right = robot.MAX_SPEED
-                #     else:
-                #         #If bearing is negative, turn RIGHT 
-                #         if robot.tasks["bearing"]>5:
-                #             if robot.tasks["bearing"]>45:
-                #                 left = +robot.MAX_SPEED*0.5
-                #                 right = -robot.MAX_SPEED*0.5
-                #             else:
-                #                 left = +robot.MAX_SPEED*0.4+(abs(robot.tasks["bearing"])*0.5)
-                #                 right = +robot.MAX_SPEED*0.4-(abs(robot.tasks["bearing"])*0.5)
-                #             time.sleep(0.005)
-                #             #left = right = robot.MAX_SPEED*0.5
-                #         elif robot.tasks["bearing"]<-5:
-                #             #turn LEFT
-                #             if robot.tasks["bearing"]<-45:
-                #                 left = -robot.MAX_SPEED*0.5
-                #                 right = +robot.MAX_SPEED*0.5
-                #             else:
-                #                 left = +robot.MAX_SPEED*0.4-(abs(robot.tasks["bearing"])*0.5)
-                #                 right = +robot.MAX_SPEED*0.4+(abs(robot.tasks["bearing"])*0.5)
-                #             time.sleep(0.005)
-                #             #left = right = robot.MAX_SPEED*0.5
+                if len(robot.tasks)>0 and robot.tasks["range"] < 0.2:
+                    if abs(robot.tasks["bearing"])<5:
+                        left = right = robot.MAX_SPEED
+                    else:
+                        #If bearing is negative, turn RIGHT 
+                        if robot.tasks["bearing"]>5:
+                            if robot.tasks["bearing"]>45:
+                                left = +robot.MAX_SPEED*0.5
+                                right = -robot.MAX_SPEED*0.5
+                            else:
+                                left = +robot.MAX_SPEED*0.7+(abs(robot.tasks["bearing"])*0.5)
+                                right = +robot.MAX_SPEED*0.7-(abs(robot.tasks["bearing"])*0.5)
+                            time.sleep(0.005)
+                            #left = right = robot.MAX_SPEED*0.5
+                        elif robot.tasks["bearing"]<-5:
+                            #turn LEFT
+                            if robot.tasks["bearing"]<-45:
+                                left = -robot.MAX_SPEED*0.5
+                                right = +robot.MAX_SPEED*0.5
+                            else:
+                                left = +robot.MAX_SPEED*0.7-(abs(robot.tasks["bearing"])*0.5)
+                                right = +robot.MAX_SPEED*0.7+(abs(robot.tasks["bearing"])*0.5)
+                            time.sleep(0.005)
+                            #left = right = robot.MAX_SPEED*0.5
                             
                 if robot.state == RobotState.FORWARDS:
                     left = right = robot.MAX_SPEED
@@ -449,10 +449,10 @@ async def handler(websocket):
     robot_id = ""
     valid_robots = list(active_robots.keys())
     forwards = "w"
-    backwards = "s"
+    backwards = "e"
     left = "a"
     right = "d"
-    stop = " "
+    stop = "s"
     release = "q"
 
     async for packet in websocket:
@@ -478,6 +478,7 @@ async def handler(websocket):
                         if int(robot_id) in valid_robots:
                             valid = True
                             await send_message(websocket, f"\r\nControlling robot ({release} to release): " + robot_id)
+                            global master_robot
                             master_robot=robot_id
                             await send_message(websocket, f"\r\nControls: Forwards = {forwards}; Backwards = {backwards}; Left = {left}; Right = {right}; Stop = SPACE")
                             active_robots[int(robot_id)].teleop = True
