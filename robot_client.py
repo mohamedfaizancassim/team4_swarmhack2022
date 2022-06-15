@@ -316,30 +316,30 @@ async def send_commands(robot):
                 # Autonomous mode
                 print("|Autonomous Mode|")
                 # Robot will try to complete tasks independently if no master is observed
-                # if len(robot.tasks)>0 and robot.tasks["range"] < 0.2:
-                #     if abs(robot.tasks["bearing"])<5:
-                #         left = right = robot.MAX_SPEED
-                #     else:
-                #         #If bearing is negative, turn RIGHT 
-                #         if robot.tasks["bearing"]>5:
-                #             if robot.tasks["bearing"]>45:
-                #                 left = +robot.MAX_SPEED*0.5
-                #                 right = -robot.MAX_SPEED*0.5
-                #             else:
-                #                 left = +robot.MAX_SPEED*0.4+(abs(robot.tasks["bearing"])*0.5)
-                #                 right = +robot.MAX_SPEED*0.4-(abs(robot.tasks["bearing"])*0.5)
-                #             time.sleep(0.005)
-                #             #left = right = robot.MAX_SPEED*0.5
-                #         elif robot.tasks["bearing"]<-5:
-                #             #turn LEFT
-                #             if robot.tasks["bearing"]<-45:
-                #                 left = -robot.MAX_SPEED*0.5
-                #                 right = +robot.MAX_SPEED*0.5
-                #             else:
-                #                 left = +robot.MAX_SPEED*0.4-(abs(robot.tasks["bearing"])*0.5)
-                #                 right = +robot.MAX_SPEED*0.4+(abs(robot.tasks["bearing"])*0.5)
-                #             time.sleep(0.005)
-                #             #left = right = robot.MAX_SPEED*0.5
+                if len(robot.tasks)>0 and robot.tasks["range"] < 0.2:
+                    if abs(robot.tasks["bearing"])<5:
+                        left = right = robot.MAX_SPEED
+                    else:
+                        #If bearing is negative, turn RIGHT 
+                        if robot.tasks["bearing"]>5:
+                            if robot.tasks["bearing"]>45:
+                                left = +robot.MAX_SPEED*0.5
+                                right = -robot.MAX_SPEED*0.5
+                            else:
+                                left = +robot.MAX_SPEED*0.7+(abs(robot.tasks["bearing"])*0.5)
+                                right = +robot.MAX_SPEED*0.7-(abs(robot.tasks["bearing"])*0.5)
+                            time.sleep(0.005)
+                            #left = right = robot.MAX_SPEED*0.5
+                        elif robot.tasks["bearing"]<-5:
+                            #turn LEFT
+                            if robot.tasks["bearing"]<-45:
+                                left = -robot.MAX_SPEED*0.5
+                                right = +robot.MAX_SPEED*0.5
+                            else:
+                                left = +robot.MAX_SPEED*0.7-(abs(robot.tasks["bearing"])*0.5)
+                                right = +robot.MAX_SPEED*0.7+(abs(robot.tasks["bearing"])*0.5)
+                            time.sleep(0.005)
+                            #left = right = robot.MAX_SPEED*0.5
                             
                 if robot.state == RobotState.FORWARDS:
                     left = right = robot.MAX_SPEED
@@ -369,7 +369,10 @@ async def send_commands(robot):
             #Follower mode on detecting master
             else:
                 print("|Follow Mode|")
-                #Obtain the orientation of the master robot
+
+                #Check if robot has neighbours.
+                #If true, move towards master.
+                #If false, do nothing. 
                 if len(robot.neighbours)>0:
                     master_orientation=robot.neighbours[master_id]['orientation']
                     master_bearing = robot.neighbours[master_id]['bearing']
@@ -377,15 +380,19 @@ async def send_commands(robot):
                     print("Orientation: ", master_orientation)
                     print("Bearing: ", master_bearing)
 
-                    #If the bearing is less than 5 degrees, move forward. 
-                    if abs(master_bearing)<=5:
+
+
+                    # The +/- range which bearing falls under for robot to move forward. 
+                    forward_bearing_tolerance=5
+                    
+                    if abs(master_bearing)<=forward_bearing_tolerance: #MOVE FORWARD
                         if master_range>=0.1:
                             left = right = robot.MAX_SPEED
                         else:
                             left=right=0
-                    else:
-                        #If bearing is negative, turn RIGHT 
-                        if master_bearing>5:
+                    else: #TURN
+                        
+                        if master_bearing>forward_bearing_tolerance: #Positive bearing, turn left.
                             if master_bearing>60:
                                 left = +robot.MAX_SPEED*0.5
                                 right = -robot.MAX_SPEED*0.5
@@ -394,8 +401,8 @@ async def send_commands(robot):
                                 right = +robot.MAX_SPEED*0.7-(abs(master_bearing)*0.5)
                             time.sleep(0.005)
                             #left = right = robot.MAX_SPEED*0.5
-                        elif master_bearing<-5:
-                           
+
+                        if master_bearing<-forward_bearing_tolerance: #Negative bearing, turn right
                             #turn LEFT
                             if master_bearing<-60:
                                 left = -robot.MAX_SPEED*0.5
@@ -405,8 +412,7 @@ async def send_commands(robot):
                                 right = +robot.MAX_SPEED*0.7+(abs(master_bearing)*0.5)
                             time.sleep(0.005)
                             #left = right = robot.MAX_SPEED*0.5
-                else:
-                    left=right=0
+
         message["set_motor_speeds"] = {}
         message["set_motor_speeds"]["left"] = left
         message["set_motor_speeds"]["right"] = right
@@ -443,10 +449,10 @@ async def handler(websocket):
     robot_id = ""
     valid_robots = list(active_robots.keys())
     forwards = "w"
-    backwards = "s"
+    backwards = "e"
     left = "a"
     right = "d"
-    stop = " "
+    stop = "s"
     release = "q"
 
     async for packet in websocket:
@@ -472,6 +478,7 @@ async def handler(websocket):
                         if int(robot_id) in valid_robots:
                             valid = True
                             await send_message(websocket, f"\r\nControlling robot ({release} to release): " + robot_id)
+                            global master_robot
                             master_robot=robot_id
                             await send_message(websocket, f"\r\nControls: Forwards = {forwards}; Backwards = {backwards}; Left = {left}; Right = {right}; Stop = SPACE")
                             active_robots[int(robot_id)].teleop = True
